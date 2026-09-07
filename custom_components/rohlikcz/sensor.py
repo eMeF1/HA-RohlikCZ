@@ -202,8 +202,19 @@ class DeliveryTime(BaseEntity, SensorEntity, RestoreEntity):
                     self._last_live_order_id = earliest_order_id
                     return delivery_time
 
-            # A current but unusable announcement must not allow an older live
-            # ETA to be resurrected after the announcement later disappears.
+                if (
+                    earliest_order_id is not None
+                    and self._last_live_order_id == earliest_order_id
+                    and self._last_live_value is not None
+                ):
+                    # The announcement can remain present while no longer
+                    # containing an ETA. Preserve the last precise value for
+                    # this order instead of replacing it with the booked slot.
+                    self._last_value = self._last_live_value
+                    return self._last_live_value
+
+            # An announcement for a different order must not allow an older
+            # live ETA to be resurrected after it later disappears.
             self._clear_last_live_value(earliest_order_id)
 
         elif (

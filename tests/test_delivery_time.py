@@ -125,6 +125,34 @@ async def test_does_not_carry_live_eta_to_next_order(
     assert _state_time(hass, entity_id) == next_slot_start
 
 
+async def test_preserves_live_eta_when_same_announcement_loses_time(
+    hass: HomeAssistant,
+) -> None:
+    """A matching announcement without a time keeps that order's live ETA."""
+    live_time, slot_start = _delivery_times()
+    data = sample_api_data()
+    data["next_order"] = [_order(7001, slot_start)]
+    data["delivery_announcements"]["data"]["announcements"] = [
+        _announcement(7001, live_time)
+    ]
+
+    entry, entity_id = await _setup_delivery_time(hass, data)
+
+    updated_data = copy.deepcopy(data)
+    updated_data["delivery_announcements"]["data"]["announcements"] = [
+        {
+            "id": 7001,
+            "title": "Delivery",
+            "updatedAt": datetime.now(ZoneInfo("Europe/Prague")).isoformat(),
+            "content": "Kurýr je u vás.",
+        }
+    ]
+    entry.runtime_data.async_set_updated_data(updated_data)
+    await hass.async_block_till_done()
+
+    assert _state_time(hass, entity_id) == live_time
+
+
 async def test_concurrent_order_announcement_keeps_slot_fallback(
     hass: HomeAssistant,
 ) -> None:
